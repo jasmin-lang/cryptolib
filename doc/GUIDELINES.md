@@ -17,6 +17,10 @@ Contains the Jasmin source code. The internal structure is the following: `src/o
 
  * `implementation` : there could be many implementations for the same `primitive` under each CPU architecture. Typically, each implementation provides different trade-offs: it can be optimized for space or speed; it can take advantage of architecture-dependent extensions, for instance, use some specific CPU instructions or instructions sets such as `AVX2`. In the context of `AMD64`, common names are `ref`, `avx`, and `avx2`. These names are not mandatory, but the implementation name should provide a hint regarding the implementation type. An additional `README.md` file can be placed in the implementation folder to present/discuss any relevant detail about it.
 
+#### `common/` directories under `src/`
+
+Write me.
+
 ### `proof/`
 
 Write me.
