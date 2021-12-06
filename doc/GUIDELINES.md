@@ -78,6 +78,8 @@ Currently, there are three types of functions in Jasmin: `inline`; `local`; and 
 
 The advantages in following this guideline:
 
+*TODO*: present a scenario where this is advantageous. 
+
 ### Global params and variables
 
 Any global parameter or global variable name should be written in `ALL_CAPS`. 
