@@ -63,7 +63,7 @@ Regarding `RISC-V`: given that `AMD64` code will be under a directory named `amd
 
 There are two main file extensions for Jasmin source code:
 * `.jinc` : for any file that contains Jasmin code that do not contain any `export` functions definitions. `.jinc` files can `require` other `.jinc` files.
-* `.jazz` : for files that only contain `export`ed functions. For instance, a given implementation, `crypto_kem/kyber/kyber768/amd64/ref` should define a `kem.jazz` file that export the corresponding functions. The same for `crypto_stream/chacha20/amd64/ref`, which defines a file `stream.jazz`. These `*.jazz` files should define exported functions with namespacing, for instance, `export fn crypto_stream_chacha20_amd64_ref`.
+* `.jazz` : for files that only contain `export`ed functions. For instance `crypto_kem/kyber/kyber768/amd64/ref` should define a `kem.jazz` file that exports the functions expected by the operation. The same for `crypto_stream/chacha20/amd64/ref`, which defines a file `stream.jazz`. These `*.jazz` files should define exported functions with namespacing in mind, for instance, `export fn crypto_stream_chacha20_amd64_ref`.
 
 #### Proofs
 
