@@ -1,5 +1,5 @@
 JFLAGS := $(JFLAGS) -noinsertarraycopy
-JASMINC := jasminc
+JASMINC := jasminc_get_random
 DEPSDIR := .deps
 DEPS = (bash -c 'echo -n "$@: "'; $(JASMINC) --print-dependencies $<) > $(DEPSDIR)/$*.d
 COMPILE = $(JASMINC) $(JFLAGS) -o $@ $<
