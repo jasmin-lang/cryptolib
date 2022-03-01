@@ -1,0 +1,216 @@
+
+// the following implementation requires:
+// - (even) param int CHACHA_ROUNDS;
+// - inline fn __init_ref1(reg u64 nonce key) -> stack u32[16] (check chacha_state.jinc)
+// - inline fn __increment_counter_ref1(stack u32[16] state) -> stack u32[16] (check chacha_state.jinc)
+
+// used;
+inline fn __copy_state_ref1(stack u32[16] st) -> reg u32[16], stack u32, stack u32
+{
+  inline int i;
+  reg u32 k14 k15;
+  reg u32[16] k;
+  stack u32 s_k14 s_k15;
+
+  k14 = st[14];
+  s_k14 = k14;
+
+  k15 = st[15];
+  s_k15 = k15;
+
+  for i=0 to 14
+  { k[i] = st[i]; }
+
+  return k, s_k14, s_k15;
+}
+
+
+// used; performs two quarter rounds, inlined 'line's;
+inline fn __half_round_inline_ref1(
+  reg u32[16] k,
+  inline int a0 b0 c0 d0
+             a1 b1 c1 d1
+) -> reg u32[16]
+{
+
+  //k = line(k, a, b, d, 16);
+  k[a0] += k[b0];
+  k[a1] += k[b1];
+
+  k[d0] ^= k[a0];
+  k[d1] ^= k[a1];
+
+  _, _, k[d0] = #ROL_32(k[d0], 16);
+  _, _, k[d1] = #ROL_32(k[d1], 16);
+
+  //k = line(k, c, d, b, 12);
+  k[c0] += k[d0];
+  k[c1] += k[d1];
+
+  k[b0] ^= k[c0];
+  k[b1] ^= k[c1];
+
+  _, _, k[b0] = #ROL_32(k[b0], 12);
+  _, _, k[b1] = #ROL_32(k[b1], 12);
+
+  //k = line(k, a, b, d, 8);
+  k[a0] += k[b0];
+  k[a1] += k[b1];
+
+  k[d0] ^= k[a0];
+  k[d1] ^= k[a1];
+
+  _, _, k[d0] = #ROL_32(k[d0], 8);
+  _, _, k[d1] = #ROL_32(k[d1], 8);
+
+  //k = line(k, c, d, b, 7);
+  k[c0] += k[d0];
+  k[c1] += k[d1];
+
+  k[b0] ^= k[c0];
+  k[b1] ^= k[c1];
+
+  _, _, k[b0] = #ROL_32(k[b0], 7);
+  _, _, k[b1] = #ROL_32(k[b1], 7);
+
+  return k;
+}
+
+
+// used;
+inline fn __double_round_inline_ref1(reg u32[16] k, stack u32 k1 k2 k14 k15) -> reg u32[16], stack u32, stack u32, stack u32, stack u32
+{
+  k[2] = k2; k[14] = k14;
+
+  k = __half_round_inline_ref1(k, 0, 4, 8,  12,
+                                  2, 6, 10, 14);
+  k2 = k[2]; k14 = k[14];
+  k[1] = k1; k[15] = k15;
+
+  k = __half_round_inline_ref1(k, 1, 5, 9,  13,
+                                  3, 7, 11, 15);
+
+  k = __half_round_inline_ref1(k, 1, 6, 11, 12,
+                                  0, 5, 10, 15);
+
+  k1 = k[1]; k15 = k[15];
+  k[2] = k2; k[14] = k14;
+
+  k = __half_round_inline_ref1(k, 2, 7, 8, 13,
+                                  3, 4, 9, 14);
+
+  k2 = k[2]; k14 = k[14];
+
+  return k, k1, k2, k14, k15;
+}
+
+
+// used;
+inline fn __rounds_inline_ref1(reg u32[16] k, stack u32 k14 k15) -> reg u32[16], stack u32, stack u32
+{
+  stack u32 s_c k1 k2;
+  reg u32 c;
+
+  k1 = k[1];
+  k2 = k[2];
+
+  c = (CHACHA_ROUNDS/2);
+
+  while
+  { s_c = c;
+    
+    k, k1, k2, k14, k15 = __double_round_inline_ref1(k, k1, k2, k14, k15);
+
+    c = s_c;
+    (_,_,_,_,c) = #DEC_32(c);
+  } (c > 0)
+
+  k[1] = k1;
+  k[2] = k2;
+
+  return k, k14, k15;
+}
+
+
+// used;
+inline fn __sum_states_ref1(reg u32[16] k, stack u32 k14 k15, stack u32[16] st) -> reg u32[16], stack u32, stack u32
+{
+  inline int i;
+  stack u32 k13;
+  reg u32 t;
+
+  for i=0 to 14
+  { k[i] += st[i]; }
+  k13 = k[13];
+
+  t = k14;
+  t += st[14];
+  k14 = t;
+
+  t = k15;
+  t += st[15];
+  k15 = t;
+
+  k[13] = k13;
+
+  return k, k14, k15;
+}
+
+
+inline fn __chacha_xor_ref1(reg u64 output plain len nonce key)
+{
+  stack u64 s_output s_plain s_len;
+  stack u32[16] st;
+  reg u32[16] k;  // the full state is in k[0..14] and k15;
+  stack u32 k14 k15;
+
+  s_output = output;
+  s_plain = plain;
+  s_len = len;
+
+  st = __init_ref1(nonce, key);
+
+  while {len = s_len;} (len >= 64)
+  { k, k14, k15 = __copy_state_ref1(st);
+    k, k14, k15 = __rounds_inline_ref1(k, k14, k15);
+    s_output, s_plain, s_len = __sum_states_store_xor_ref1(s_output, s_plain, s_len, k, k14, k15, st);
+    st = __increment_counter_ref1(st);
+  }
+
+  if(len > 0)
+  { k, k14, k15 = __copy_state_ref1(st);
+    k, k14, k15 = __rounds_inline_ref1(k, k14, k15);
+    k, k14, k15 = __sum_states_ref1(k, k14, k15, st);
+    __store_xor_last_ref1(s_output, s_plain, s_len, k, k14, k15);
+  }
+}
+
+
+inline fn __chacha_ref1(reg u64 output len nonce key)
+{
+  stack u64 s_output s_len;
+  stack u32[16] st;
+  reg u32[16] k;  // the full state is in k[0..13], k14, and k15;
+  stack u32 k14 k15;
+
+  s_output = output;
+  s_len = len;
+
+  st = __init_ref1(nonce, key);
+
+  while {len = s_len;} (len >= 64)
+  { k, k14, k15 = __copy_state_ref1(st);
+    k, k14, k15 = __rounds_inline_ref1(k, k14, k15);
+    s_output, s_len = __sum_states_store_ref1(s_output, s_len, k, k14, k15, st);
+    st = __increment_counter_ref1(st);
+  }
+
+  if(len > 0)
+  { k, k14, k15 = __copy_state_ref1(st);
+    k, k14, k15 = __rounds_inline_ref1(k, k14, k15);
+    k, k14, k15 = __sum_states_ref1(k, k14, k15, st);
+    __store_last_ref1(s_output, s_len, k, k14, k15);
+  }
+}
+
+

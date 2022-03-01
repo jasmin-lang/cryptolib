@@ -1,0 +1,21 @@
+param int CHACHA_ROUNDS=20;
+
+from Jade require "crypto_stream/chacha/common/amd64/ref1/chacha.jinc"
+
+export fn jade_stream_chacha_chacha20_amd64_ref1_xor(reg u64 output plain len nonce key) -> reg u64
+{
+  reg u64 r;
+  _,_,_,_,_,r = #set0();
+  __chacha_xor_ref1(output, plain, len, nonce, key);
+  return r;
+}
+
+export fn jade_stream_chacha_chacha20_amd64_ref1(reg u64 output len nonce key) -> reg u64
+{
+  reg u64 r;
+  _,_,_,_,_,r = #set0();
+  __chacha_ref1(output, len, nonce, key);
+  return r;
+}
+
+
