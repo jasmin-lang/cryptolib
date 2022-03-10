@@ -5,12 +5,19 @@
 // - inline fn __increment_counter_ref1p(stack u32[16] state) -> stack u32[16] (check chacha_state.jinc)
 
 // used;
-inline fn __copy_state_ref1p(stack u32[16] st) -> reg u32[16], stack u32, stack u32
+inline fn __copy_state_ref1p(
+  #secret stack u32[16] st,
+  #msf reg u64 ms)
+  ->
+  #secret reg u32[16],
+  #secret stack u32,
+  #secret stack u32,
+  #msf reg u64
 {
-  inline int i;
-  reg u32 k14 k15;
-  reg u32[16] k;
-  stack u32 s_k14 s_k15;
+  #public inline int i;
+  #secret reg u32 k14 k15;
+  #secret reg u32[16] k;
+  #secret stack u32 s_k14 s_k15;
 
   k14 = st[14];
   s_k14 = k14;
@@ -21,16 +28,19 @@ inline fn __copy_state_ref1p(stack u32[16] st) -> reg u32[16], stack u32, stack 
   for i=0 to 14
   { k[i] = st[i]; }
 
-  return k, s_k14, s_k15;
+  return k, s_k14, s_k15, ms;
 }
 
 
 // used; performs two quarter rounds, inlined 'line's;
 inline fn __half_round_inline_ref1p(
-  reg u32[16] k,
-  inline int a0 b0 c0 d0
-             a1 b1 c1 d1
-) -> reg u32[16]
+  #secret reg u32[16] k,
+  #public inline int a0 b0 c0 d0
+                     a1 b1 c1 d1,
+  #msf reg u64 ms)
+  ->
+  #secret reg u32[16], 
+  #msf reg u64
 {
 
   //k = line(k, a, b, d, 16);
@@ -73,67 +83,102 @@ inline fn __half_round_inline_ref1p(
   _, _, k[b0] = #ROL_32(k[b0], 7);
   _, _, k[b1] = #ROL_32(k[b1], 7);
 
-  return k;
+  return k, ms;
 }
 
 
 // used;
-inline fn __double_round_inline_ref1p(reg u32[16] k, stack u32 k1 k2 k14 k15) -> reg u32[16], stack u32, stack u32, stack u32, stack u32
+inline fn __double_round_inline_ref1p(
+  #secret reg u32[16] k,
+  #secret stack u32 k1 k2 k14 k15,
+  #msf reg u64 ms
+  )
+  -> 
+  #secret reg u32[16],
+  #secret stack u32,
+  #secret stack u32,
+  #secret stack u32,
+  #secret stack u32,
+  #msf reg u64
 {
   k[2] = k2; k[14] = k14;
 
-  k = __half_round_inline_ref1p(k, 0, 4, 8,  12,
-                                  2, 6, 10, 14);
+  k, ms = __half_round_inline_ref1p(k, 0, 4, 8,  12,
+                                       2, 6, 10, 14, ms);
   k2 = k[2]; k14 = k[14];
   k[1] = k1; k[15] = k15;
 
-  k = __half_round_inline_ref1p(k, 1, 5, 9,  13,
-                                  3, 7, 11, 15);
+  k, ms = __half_round_inline_ref1p(k, 1, 5, 9,  13,
+                                       3, 7, 11, 15, ms);
 
-  k = __half_round_inline_ref1p(k, 1, 6, 11, 12,
-                                  0, 5, 10, 15);
+  k, ms = __half_round_inline_ref1p(k, 1, 6, 11, 12,
+                                       0, 5, 10, 15, ms);
 
   k1 = k[1]; k15 = k[15];
   k[2] = k2; k[14] = k14;
 
-  k = __half_round_inline_ref1p(k, 2, 7, 8, 13,
-                                  3, 4, 9, 14);
+  k, ms = __half_round_inline_ref1p(k, 2, 7, 8, 13,
+                                       3, 4, 9, 14, ms);
 
   k2 = k[2]; k14 = k[14];
 
-  return k, k1, k2, k14, k15;
+  return k, k1, k2, k14, k15, ms;
 }
 
 
 // used;
-inline fn __rounds_inline_ref1p(reg u32[16] k, stack u32 k14 k15) -> reg u32[16], stack u32, stack u32
+inline fn __rounds_inline_ref1p(
+  #secret reg u32[16] k,
+  #secret stack u32 k14 k15,
+  #msf reg u64 ms)
+  ->
+  #secret reg u32[16],
+  #secret stack u32,
+  #secret stack u32,
+  #msf reg u64
 {
-  stack u32 s_c k1 k2;
-  reg u32 c;
+  #secret stack u32 k1 k2;
+  #transient stack u32 s_c;
+  #public reg u32 c;
+  #public reg bool b;
+  #transient reg u32 tt;
 
   k1 = k[1];
   k2 = k[2];
 
   c = (CHACHA_ROUNDS/2);
-
   while
-  { s_c = c;
-    
-    k, k1, k2, k14, k15 = __double_round_inline_ref1p(k, k1, k2, k14, k15);
+  {
+    s_c = c;
+    k, k1, k2, k14, k15, ms = __double_round_inline_ref1p(k, k1, k2, k14, k15, ms);
 
-    c = s_c;
+    //c = s_c;
+    tt = s_c;
+    _, _, _, _, _, c = #protect_32(tt, ms);
+
     (_,_,_,_,c) = #DEC_32(c);
-  } (c > 0)
+    b = (c > 0);
+  } (b) { _, ms = #set_msf(b, ms); }
+  _, ms = #set_msf(!b, ms);
 
   k[1] = k1;
   k[2] = k2;
 
-  return k, k14, k15;
+  return k, k14, k15, ms;
 }
 
 
 // used;
-inline fn __sum_states_ref1p(reg u32[16] k, stack u32 k14 k15, stack u32[16] st) -> reg u32[16], stack u32, stack u32
+inline fn __sum_states_ref1p(
+  #secret reg u32[16] k,
+  #secret stack u32 k14 k15,
+  #secret stack u32[16] st,
+  #msf reg u64 ms) 
+  ->
+  #secret reg u32[16],
+  #secret stack u32,
+  #secret stack u32,
+  #msf reg u64
 {
   inline int i;
   stack u32 k13;
@@ -153,66 +198,96 @@ inline fn __sum_states_ref1p(reg u32[16] k, stack u32 k14 k15, stack u32[16] st)
 
   k[13] = k13;
 
-  return k, k14, k15;
+  return k, k14, k15, ms;
 }
 
 
-inline fn __chacha_xor_ref1p(reg u64 output plain len nonce key, #msf reg u64 ms) ->  #msf reg u64
+inline fn __chacha_xor_ref1p(#public reg u64 output plain len nonce key, #msf reg u64 ms) ->  #msf reg u64
 {
-  stack u64 s_output s_plain s_len;
-  stack u32[16] st;
-  reg u32[16] k;  // the full state is in k[0..14] and k15;
-  stack u32 k14 k15;
+  #transient stack u64 s_output s_plain s_len;
+  #secret stack u32[16] st;
+  #secret reg u32[16] k;  // the full state is in k[0..14] and k15;
+  #secret stack u32 k14 k15;
+  #public reg bool b;
+  #transient reg u64 tt;
 
   s_output = output;
   s_plain = plain;
   s_len = len;
 
-  st = __init_ref1p(nonce, key);
+  st, ms = __init_ref1p(nonce, key, ms);
 
-  while {len = s_len;} (len >= 64)
-  { k, k14, k15 = __copy_state_ref1p(st);
-    k, k14, k15 = __rounds_inline_ref1p(k, k14, k15);
-    s_output, s_plain, s_len = __sum_states_store_xor_ref1p(s_output, s_plain, s_len, k, k14, k15, st);
-    st = __increment_counter_ref1p(st);
+  while {
+    tt = s_len;
+    _, _, _, _, _, len = #protect(tt, ms);
+    b = (len >= 64);
+  } (b)
+  { 
+    _, ms = #set_msf(b, ms);
+    k, k14, k15, ms = __copy_state_ref1p(st, ms);
+    k, k14, k15, ms = __rounds_inline_ref1p(k, k14, k15, ms);
+    s_output, s_plain, s_len, ms = __sum_states_store_xor_ref1p(s_output, s_plain, s_len, k, k14, k15, st, ms);
+    st, ms = __increment_counter_ref1p(st, ms);
   }
+  _, ms = #set_msf(!b, ms);
 
-  if(len > 0)
-  { k, k14, k15 = __copy_state_ref1p(st);
-    k, k14, k15 = __rounds_inline_ref1p(k, k14, k15);
-    k, k14, k15 = __sum_states_ref1p(k, k14, k15, st);
-    __store_xor_last_ref1p(s_output, s_plain, s_len, k, k14, k15);
+  b = (len > 0);
+  if(b)
+  { 
+    _, ms = #set_msf(b, ms);
+    k, k14, k15, ms = __copy_state_ref1p(st, ms);
+    k, k14, k15, ms = __rounds_inline_ref1p(k, k14, k15, ms);
+    k, k14, k15, ms = __sum_states_ref1p(k, k14, k15, st, ms);
+    ms = __store_xor_last_ref1p(s_output, s_plain, s_len, k, k14, k15, ms);
   }
+  else // CHECKME
+  { _, ms = #set_msf(!b, ms); }
 
   return ms;
 }
 
-/*
-inline fn __chacha_ref1p(reg u64 output len nonce key)
+
+inline fn __chacha_ref1p(#public reg u64 output len nonce key, #msf reg u64 ms) ->  #msf reg u64
 {
-  stack u64 s_output s_len;
-  stack u32[16] st;
-  reg u32[16] k;  // the full state is in k[0..13], k14, and k15;
-  stack u32 k14 k15;
+  #transient stack u64 s_output s_len;
+  #secret stack u32[16] st;
+  #secret reg u32[16] k;  // the full state is in k[0..13], k14, and k15;
+  #secret stack u32 k14 k15;
+  #public reg bool b;
+  #transient reg u64 tt;
 
   s_output = output;
   s_len = len;
 
-  st = __init_ref1p(nonce, key);
+  st, ms = __init_ref1p(nonce, key, ms);
 
-  while {len = s_len;} (len >= 64)
-  { k, k14, k15 = __copy_state_ref1p(st);
-    k, k14, k15 = __rounds_inline_ref1p(k, k14, k15);
-    s_output, s_len = __sum_states_store_ref1p(s_output, s_len, k, k14, k15, st);
-    st = __increment_counter_ref1p(st);
+  while {
+    tt = s_len;
+    _, _, _, _, _, len = #protect(tt, ms);
+    b = (len >= 64);
+  } (b)
+  {
+    _, ms = #set_msf(b, ms);
+    k, k14, k15, ms = __copy_state_ref1p(st, ms);
+    k, k14, k15, ms = __rounds_inline_ref1p(k, k14, k15, ms);
+    s_output, s_len, ms = __sum_states_store_ref1p(s_output, s_len, k, k14, k15, st, ms);
+    st, ms = __increment_counter_ref1p(st, ms);
   }
+  _, ms = #set_msf(!b, ms);
 
-  if(len > 0)
-  { k, k14, k15 = __copy_state_ref1p(st);
-    k, k14, k15 = __rounds_inline_ref1p(k, k14, k15);
-    k, k14, k15 = __sum_states_ref1p(k, k14, k15, st);
-    __store_last_ref1p(s_output, s_len, k, k14, k15);
+  b = (len > 0);
+  if(b)
+  { 
+    _, ms = #set_msf(b, ms);
+    k, k14, k15, ms = __copy_state_ref1p(st, ms);
+    k, k14, k15, ms = __rounds_inline_ref1p(k, k14, k15, ms);
+    k, k14, k15, ms = __sum_states_ref1p(k, k14, k15, st, ms);
+    ms = __store_last_ref1p(s_output, s_len, k, k14, k15, ms);
   }
+  else // CHECKME
+  { _, ms = #set_msf(!b, ms); }
+
+  return ms;
 }
-*/
+
 

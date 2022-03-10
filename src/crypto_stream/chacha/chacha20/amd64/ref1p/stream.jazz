@@ -4,19 +4,27 @@ from Jade require "crypto_stream/chacha/common/amd64/ref1p/chacha.jinc"
 
 export fn jade_stream_chacha_chacha20_amd64_ref1p_xor(#public reg u64 output plain len nonce key) -> reg u64
 {
+  reg u64 r;
   #msf reg u64 ms;
   ms = #init_msf();
   ms = __chacha_xor_ref1p(output, plain, len, nonce, key, ms);
-  return ms; // temporary return of ms
-}
+  _ = #init_msf(); // TODO: should it check without this?
 
-/*
-export fn jade_stream_chacha_chacha20_amd64_ref1p(reg u64 output len nonce key) -> reg u64
-{
-  reg u64 r;
   _,_,_,_,_,r = #set0();
-  __chacha_ref1p(output, len, nonce, key);
   return r;
 }
-*/
+
+
+export fn jade_stream_chacha_chacha20_amd64_ref1p(#public reg u64 output len nonce key) -> reg u64
+{
+  reg u64 r;
+  #msf reg u64 ms;
+  ms = #init_msf();
+  ms = __chacha_ref1p(output, len, nonce, key, ms);
+  _ = #init_msf(); // TODO: same as prev.
+
+  _,_,_,_,_,r = #set0();
+  return r;
+}
+
 
