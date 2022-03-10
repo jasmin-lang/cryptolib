@@ -91,8 +91,8 @@ inline fn __sum_states_store_xor_ref1(
 
   for i=2 to 8
   {
-                                  if (2*i+1 == 15) { k[2*i+1] = k15; }
-                                  if (2*i == 14) { k[2*i] = k14; }
+                                  k[2*i+1] = k15 if (2*i+1 == 15);
+                                  k[2*i] = k14 if (2*i == 14);
                                   k[2*i+1] += st[2*i+1];
                                   k[2*i] += st[2*i];
     kk[i] = (64u)(k[2*i+1]);
