@@ -2,7 +2,7 @@
 // nonce : 8 bytes
 // key : 32 bytes
 // counter : 8 bytes (starts at 0)
-inline fn __init_ref1p(#public reg u64 nonce key, #msf reg u64 ms) -> #secret stack u32[16], #msf reg u64
+#nomodmsf inline fn __init_ref1p(#public reg u64 nonce key) -> #secret stack u32[16]
 {
   inline int i;
   stack u32[16] st;
@@ -26,11 +26,11 @@ inline fn __init_ref1p(#public reg u64 nonce key, #msf reg u64 ms) -> #secret st
   { t = (u32)[nonce + 4*i];
     st[14+i] = t; }
 
-  return st, ms;
+  return st;
 }
 
 // increments 64-bit counter
-inline fn __increment_counter_ref1p(#secret stack u32[16] st, #msf reg u64 ms) -> #secret stack u32[16], #msf reg u64
+#nomodmsf inline fn __increment_counter_ref1p(#secret stack u32[16] st) -> #secret stack u32[16]
 {
   reg u64 t;
 
@@ -38,5 +38,5 @@ inline fn __increment_counter_ref1p(#secret stack u32[16] st, #msf reg u64 ms) -
   t += 1;
   st[u64 6] = t;
 
-  return st, ms;
+  return st;
 }

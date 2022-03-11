@@ -5,14 +5,12 @@
 // - inline fn __increment_counter_ref1p(stack u32[16] state) -> stack u32[16] (check chacha_state.jinc)
 
 // used;
-inline fn __copy_state_ref1p(
-  #secret stack u32[16] st,
-  #msf reg u64 ms)
+#nomodmsf inline fn __copy_state_ref1p(
+  #secret stack u32[16] st)
   ->
   #secret reg u32[16],
   #secret stack u32,
-  #secret stack u32,
-  #msf reg u64
+  #secret stack u32
 {
   #public inline int i;
   #secret reg u32 k14 k15;
@@ -28,19 +26,17 @@ inline fn __copy_state_ref1p(
   for i=0 to 14
   { k[i] = st[i]; }
 
-  return k, s_k14, s_k15, ms;
+  return k, s_k14, s_k15;
 }
 
 
 // used; performs two quarter rounds, inlined 'line's;
-inline fn __half_round_inline_ref1p(
+#nomodmsf inline fn __half_round_inline_ref1p(
   #secret reg u32[16] k,
   #public inline int a0 b0 c0 d0
-                     a1 b1 c1 d1,
-  #msf reg u64 ms)
+                     a1 b1 c1 d1)
   ->
-  #secret reg u32[16], 
-  #msf reg u64
+  #secret reg u32[16]
 {
 
   //k = line(k, a, b, d, 16);
@@ -83,46 +79,44 @@ inline fn __half_round_inline_ref1p(
   _, _, k[b0] = #ROL_32(k[b0], 7);
   _, _, k[b1] = #ROL_32(k[b1], 7);
 
-  return k, ms;
+  return k;
 }
 
 
 // used;
-inline fn __double_round_inline_ref1p(
+#nomodmsf inline fn __double_round_inline_ref1p(
   #secret reg u32[16] k,
-  #secret stack u32 k1 k2 k14 k15,
-  #msf reg u64 ms
+  #secret stack u32 k1 k2 k14 k15
   )
-  -> 
+  ->
   #secret reg u32[16],
   #secret stack u32,
   #secret stack u32,
   #secret stack u32,
-  #secret stack u32,
-  #msf reg u64
+  #secret stack u32
 {
   k[2] = k2; k[14] = k14;
 
-  k, ms = __half_round_inline_ref1p(k, 0, 4, 8,  12,
-                                       2, 6, 10, 14, ms);
+  k = __half_round_inline_ref1p(k, 0, 4, 8,  12,
+                                       2, 6, 10, 14);
   k2 = k[2]; k14 = k[14];
   k[1] = k1; k[15] = k15;
 
-  k, ms = __half_round_inline_ref1p(k, 1, 5, 9,  13,
-                                       3, 7, 11, 15, ms);
+  k = __half_round_inline_ref1p(k, 1, 5, 9,  13,
+                                       3, 7, 11, 15);
 
-  k, ms = __half_round_inline_ref1p(k, 1, 6, 11, 12,
-                                       0, 5, 10, 15, ms);
+  k = __half_round_inline_ref1p(k, 1, 6, 11, 12,
+                                       0, 5, 10, 15);
 
   k1 = k[1]; k15 = k[15];
   k[2] = k2; k[14] = k14;
 
-  k, ms = __half_round_inline_ref1p(k, 2, 7, 8, 13,
-                                       3, 4, 9, 14, ms);
+  k = __half_round_inline_ref1p(k, 2, 7, 8, 13,
+                                       3, 4, 9, 14);
 
   k2 = k[2]; k14 = k[14];
 
-  return k, k1, k2, k14, k15, ms;
+  return k, k1, k2, k14, k15;
 }
 
 
@@ -150,7 +144,7 @@ inline fn __rounds_inline_ref1p(
   while
   {
     s_c = c;
-    k, k1, k2, k14, k15, ms = __double_round_inline_ref1p(k, k1, k2, k14, k15, ms);
+    k, k1, k2, k14, k15 = __double_round_inline_ref1p(k, k1, k2, k14, k15);
 
     //c = s_c;
     tt = s_c;
@@ -173,7 +167,7 @@ inline fn __sum_states_ref1p(
   #secret reg u32[16] k,
   #secret stack u32 k14 k15,
   #secret stack u32[16] st,
-  #msf reg u64 ms) 
+  #msf reg u64 ms)
   ->
   #secret reg u32[16],
   #secret stack u32,
@@ -215,27 +209,27 @@ inline fn __chacha_xor_ref1p(#public reg u64 output plain len nonce key, #msf re
   s_plain = plain;
   s_len = len;
 
-  st, ms = __init_ref1p(nonce, key, ms);
+  st = __init_ref1p(nonce, key);
 
   while {
     tt = s_len;
     _, _, _, _, _, len = #protect(tt, ms);
     b = (len >= 64);
   } (b)
-  { 
+  {
     _, ms = #set_msf(b, ms);
-    k, k14, k15, ms = __copy_state_ref1p(st, ms);
+    k, k14, k15 = __copy_state_ref1p(st);
     k, k14, k15, ms = __rounds_inline_ref1p(k, k14, k15, ms);
-    s_output, s_plain, s_len, ms = __sum_states_store_xor_ref1p(s_output, s_plain, s_len, k, k14, k15, st, ms);
-    st, ms = __increment_counter_ref1p(st, ms);
+    s_output, s_plain, s_len = __sum_states_store_xor_ref1p(s_output, s_plain, s_len, k, k14, k15, st, ms);
+    st = __increment_counter_ref1p(st);
   }
   _, ms = #set_msf(!b, ms);
 
   b = (len > 0);
   if(b)
-  { 
+  {
     _, ms = #set_msf(b, ms);
-    k, k14, k15, ms = __copy_state_ref1p(st, ms);
+    k, k14, k15 = __copy_state_ref1p(st);
     k, k14, k15, ms = __rounds_inline_ref1p(k, k14, k15, ms);
     k, k14, k15, ms = __sum_states_ref1p(k, k14, k15, st, ms);
     ms = __store_xor_last_ref1p(s_output, s_plain, s_len, k, k14, k15, ms);
@@ -259,7 +253,7 @@ inline fn __chacha_ref1p(#public reg u64 output len nonce key, #msf reg u64 ms) 
   s_output = output;
   s_len = len;
 
-  st, ms = __init_ref1p(nonce, key, ms);
+  st = __init_ref1p(nonce, key);
 
   while {
     tt = s_len;
@@ -268,18 +262,18 @@ inline fn __chacha_ref1p(#public reg u64 output len nonce key, #msf reg u64 ms) 
   } (b)
   {
     _, ms = #set_msf(b, ms);
-    k, k14, k15, ms = __copy_state_ref1p(st, ms);
+    k, k14, k15 = __copy_state_ref1p(st);
     k, k14, k15, ms = __rounds_inline_ref1p(k, k14, k15, ms);
-    s_output, s_len, ms = __sum_states_store_ref1p(s_output, s_len, k, k14, k15, st, ms);
-    st, ms = __increment_counter_ref1p(st, ms);
+    s_output, s_len = __sum_states_store_ref1p(s_output, s_len, k, k14, k15, st, ms);
+    st = __increment_counter_ref1p(st);
   }
   _, ms = #set_msf(!b, ms);
 
   b = (len > 0);
   if(b)
-  { 
+  {
     _, ms = #set_msf(b, ms);
-    k, k14, k15, ms = __copy_state_ref1p(st, ms);
+    k, k14, k15 = __copy_state_ref1p(st);
     k, k14, k15, ms = __rounds_inline_ref1p(k, k14, k15, ms);
     k, k14, k15, ms = __sum_states_ref1p(k, k14, k15, st, ms);
     ms = __store_last_ref1p(s_output, s_len, k, k14, k15, ms);
@@ -289,5 +283,3 @@ inline fn __chacha_ref1p(#public reg u64 output len nonce key, #msf reg u64 ms) 
 
   return ms;
 }
-
-

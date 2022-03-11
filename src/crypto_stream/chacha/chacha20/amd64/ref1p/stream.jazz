@@ -8,9 +8,8 @@ export fn jade_stream_chacha_chacha20_amd64_ref1p_xor(#public reg u64 output pla
   #msf reg u64 ms;
   ms = #init_msf();
   ms = __chacha_xor_ref1p(output, plain, len, nonce, key, ms);
-  _ = #init_msf(); // TODO: should it check without this?
-
   _,_,_,_,_,r = #set0();
+  _ = #init_msf();
   return r;
 }
 
@@ -21,10 +20,7 @@ export fn jade_stream_chacha_chacha20_amd64_ref1p(#public reg u64 output len non
   #msf reg u64 ms;
   ms = #init_msf();
   ms = __chacha_ref1p(output, len, nonce, key, ms);
-  _ = #init_msf(); // TODO: same as prev.
-
   _,_,_,_,_,r = #set0();
+  _ = #init_msf();
   return r;
 }
-
-

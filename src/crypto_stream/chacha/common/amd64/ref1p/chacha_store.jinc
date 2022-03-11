@@ -2,34 +2,30 @@
 ///////////////////////////////////////////////////////////////////////////////
 // store 'xor' ////////////////////////////////////////////////////////////////
 
-inline fn __update_ptr_xor_ref1p(
+#nomodmsf inline fn __update_ptr_xor_ref1p(
   #public reg u64 output plain len,
-  #public inline int n,
-  #msf reg u64 ms)
+  #public inline int n)
   ->
   #public reg u64,
   #public reg u64,
-  #public reg u64,
-  #msf reg u64
+  #public reg u64
 {
   output += n;
   plain += n;
   len -= n;
-  return output, plain, len, ms;
+  return output, plain, len;
 }
 
 // 64 bytes
-inline fn __store_xor_ref1p(
+#nomodmsf inline fn __store_xor_ref1p(
   #transient stack u64 s_output s_plain s_len,
   #secret reg u32[16] k,
   #secret stack u32 k14 k15,
-  #msf reg u64 ms
-)
--> 
+  #msf reg u64 ms)
+->
   #transient stack u64,
   #transient stack u64,
-  #transient stack u64,
-  #msf reg u64
+  #transient stack u64
 {
   #public inline int i;
   #secret reg u64[8] kk;
@@ -78,26 +74,25 @@ inline fn __store_xor_ref1p(
   tt = s_len;
   _, _, _, _, _, len = #protect(tt, ms);
 
-  output, plain, len, ms = __update_ptr_xor_ref1p(output, plain, len, 64, ms);
+  output, plain, len = __update_ptr_xor_ref1p(output, plain, len, 64);
 
   s_output = output;
   s_plain = plain;
   s_len = len;
 
-  return s_output, s_plain, s_len, ms;
+  return s_output, s_plain, s_len;
 }
 
-inline fn __sum_states_store_xor_ref1p(
+#nomodmsf inline fn __sum_states_store_xor_ref1p(
   #transient stack u64 s_output s_plain s_len,
   #secret reg u32[16] k,
   #secret stack u32 k14 k15,
   #secret stack u32[16] st,
   #msf reg u64 ms
-) -> 
+) ->
   #transient stack u64,
   #transient stack u64,
-  #transient stack u64,
-  #msf reg u64
+  #transient stack u64
 {
   #public inline int i;
   #secret reg u64[8] kk;
@@ -156,13 +151,13 @@ inline fn __sum_states_store_xor_ref1p(
   tt = s_len;
   _, _, _, _, _, len = #protect(tt, ms);
 
-  output, plain, len, ms = __update_ptr_xor_ref1p(output, plain, len, 64, ms);
+  output, plain, len = __update_ptr_xor_ref1p(output, plain, len, 64);
 
   s_output = output;
   s_plain = plain;
   s_len = len;
 
-  return s_output, s_plain, s_len, ms;
+  return s_output, s_plain, s_len;
 }
 
 inline fn __store_xor_last_ref1p(
@@ -242,30 +237,27 @@ inline fn __store_xor_last_ref1p(
 ///////////////////////////////////////////////////////////////////////////////
 // store //////////////////////////////////////////////////////////////////////
 
-inline fn __update_ptr_ref1p(
+#nomodmsf inline fn __update_ptr_ref1p(
   #public reg u64 output len,
-  #public inline int n,
-  #msf reg u64 ms)
+  #public inline int n)
   ->
   #public reg u64,
-  #public reg u64,
-  #msf reg u64
+  #public reg u64
 {
   output += n;
   len -= n;
-  return output, len, ms;
+  return output, len;
 }
 
 // 64 bytes
-inline fn __store_ref1p(
+#nomodmsf inline fn __store_ref1p(
   #transient stack u64 s_output s_len,
   #secret reg u32[16] k,
   #secret stack u32 k14 k15,
   #msf reg u64 ms)
   ->
   #transient stack u64,
-  #transient stack u64,
-  #msf reg u64
+  #transient stack u64
 {
   #public inline int i;
   #secret reg u64[8] kk;
@@ -306,15 +298,15 @@ inline fn __store_ref1p(
   tt = s_len;
   _, _, _, _, _, len = #protect(tt, ms);
 
-  output, len, ms = __update_ptr_ref1p(output, len, 64, ms);
+  output, len = __update_ptr_ref1p(output, len, 64);
 
   s_output = output;
   s_len = len;
 
-  return s_output, s_len, ms;
+  return s_output, s_len;
 }
 
-inline fn __sum_states_store_ref1p(
+#nomodmsf inline fn __sum_states_store_ref1p(
   #transient stack u64 s_output s_len,
   #secret reg u32[16] k,
   #secret stack u32 k14 k15,
@@ -322,8 +314,7 @@ inline fn __sum_states_store_ref1p(
   #msf reg u64 ms)
   ->
   #transient stack u64,
-  #transient stack u64,
-  #msf reg u64
+  #transient stack u64
 {
   #public inline int i;
   #secret reg u64[8] kk;
@@ -373,12 +364,12 @@ inline fn __sum_states_store_ref1p(
   tt = s_len;
   _, _, _, _, _, len = #protect(tt, ms);
 
-  output, len, ms = __update_ptr_ref1p(output, len, 64, ms);
+  output, len = __update_ptr_ref1p(output, len, 64);
 
   s_output = output;
   s_len = len;
 
-  return s_output, s_len, ms;
+  return s_output, s_len;
 }
 
 // speculative constant type checker: Current state is Trans ({}, (! (j <u len))), use #set_msf before
@@ -448,4 +439,3 @@ inline fn __store_last_ref1p(
 
   return ms;
 }
-
