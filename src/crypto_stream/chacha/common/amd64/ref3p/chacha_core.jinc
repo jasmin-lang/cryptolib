@@ -1,0 +1,207 @@
+
+// the following implementation requires:
+// - (even) param int CHACHA_ROUNDS;
+// - inline fn __init_ref3p(reg u64 nonce key) -> stack u32[16] (check chacha_state.jinc)
+// - inline fn __increment_counter_ref3p(stack u32[16] state) -> stack u32[16] (check chacha_state.jinc)
+
+// used;
+inline fn __copy_state_ref3p(stack u32[16] st) -> reg u32[16], stack u32
+{
+  inline int i;
+  reg u32 k15;
+  reg u32[16] k;
+  stack u32 s_k15;
+
+  k15 = st[15];
+  s_k15 = k15;
+
+  for i=0 to 15
+  { k[i] = st[i]; }
+
+  return k, s_k15;
+}
+
+
+// used; performs two quarter rounds, inlined 'line's;
+inline fn __half_round_inline_ref3p(
+  reg u32[16] k,
+  inline int a0 b0 c0 d0
+             a1 b1 c1 d1
+) -> reg u32[16]
+{
+
+  //k = line(k, a, b, d, 16);
+  k[a0] += k[b0];
+  k[a1] += k[b1];
+
+  k[d0] ^= k[a0];
+  k[d1] ^= k[a1];
+
+  _, _, k[d0] = #ROL_32(k[d0], 16);
+  _, _, k[d1] = #ROL_32(k[d1], 16);
+
+  //k = line(k, c, d, b, 12);
+  k[c0] += k[d0];
+  k[c1] += k[d1];
+
+  k[b0] ^= k[c0];
+  k[b1] ^= k[c1];
+
+  _, _, k[b0] = #ROL_32(k[b0], 12);
+  _, _, k[b1] = #ROL_32(k[b1], 12);
+
+  //k = line(k, a, b, d, 8);
+  k[a0] += k[b0];
+  k[a1] += k[b1];
+
+  k[d0] ^= k[a0];
+  k[d1] ^= k[a1];
+
+  _, _, k[d0] = #ROL_32(k[d0], 8);
+  _, _, k[d1] = #ROL_32(k[d1], 8);
+
+  //k = line(k, c, d, b, 7);
+  k[c0] += k[d0];
+  k[c1] += k[d1];
+
+  k[b0] ^= k[c0];
+  k[b1] ^= k[c1];
+
+  _, _, k[b0] = #ROL_32(k[b0], 7);
+  _, _, k[b1] = #ROL_32(k[b1], 7);
+
+  return k;
+}
+
+
+// used;
+inline fn __double_round_inline_ref3p(reg u32[16] k, stack u32 k14 k15) -> reg u32[16], stack u32, stack u32
+{
+  k[14] = k14;
+
+  k = __half_round_inline_ref3p(k, 0, 4, 8, 12,
+                                   2, 6, 10, 14);
+  k14 = k[14];
+  k[15] = k15;
+
+  k = __half_round_inline_ref3p(k, 1, 5, 9, 13,
+                                   3, 7, 11, 15);
+
+  k = __half_round_inline_ref3p(k, 1, 6, 11, 12,
+                                   0, 5, 10, 15);
+
+  k15 = k[15];
+  k[14] = k14;
+
+  k = __half_round_inline_ref3p(k, 2, 7, 8, 13,
+                                  3, 4, 9, 14);
+
+  k14 = k[14];
+
+  return k, k14, k15;
+}
+
+// used;
+inline fn __rounds_inline_ref3p(#secret reg u32[16] k, #secret stack u32 k15) -> #secret reg u32[16], #secret stack u32
+{
+  #secret stack u32 k14;
+  #public regx u32 s_c;
+  #public reg u32 c;
+
+  k14 = k[14];
+  c = (CHACHA_ROUNDS/2);
+
+  while
+  { s_c = #MOVX_32(c);
+    
+    k, k14, k15 = __double_round_inline_ref3p(k, k14, k15);
+
+    c = #MOVX_32(s_c);
+    (_,_,_,_,c) = #DEC_32(c);
+  } (c > 0)
+
+  k[14] = k14;
+  return k, k15;
+}
+
+// used;
+inline fn __sum_states_ref3p(#secret reg u32[16] k, #secret stack u32 k15, #secret stack u32[16] st) -> #secret reg u32[16], #secret stack u32
+{
+  inline int i;
+  stack u32 k14;
+  reg u32 t;
+
+  for i=0 to 15
+  { k[i] += st[i]; }
+
+  k14 = k[14];
+
+  t = k15;
+  t += st[15];
+  k15 = t;
+
+  k[14] = k14;
+
+  return k, k15;
+}
+
+inline fn __chacha_xor_ref3p(#public reg u64 output plain len nonce key)
+{
+  #public regx u64 s_output s_plain s_len;
+  #secret stack u32[16] st;
+  #secret reg u32[16] k;  // the full state is in k[0..14] and k15;
+  #secret stack u32 k15;
+  #public reg bool b;
+
+  s_output = #MOVX(output);
+  s_plain = #MOVX(plain);
+  s_len = #MOVX(len);
+
+  st = __init_ref3p(nonce, key);
+
+  while {len = #MOVX(s_len); b = (len >= 64); } (b)
+  { k, k15 = __copy_state_ref3p(st);
+    k, k15 = __rounds_inline_ref3p(k, k15);
+    s_output, s_plain, s_len = __sum_states_store_xor_ref3p(s_output, s_plain, s_len, k, k15, st);
+    st = __increment_counter_ref3p(st);
+  }
+
+  b = (len > 0);
+  if(b)
+  { k, k15 = __copy_state_ref3p(st);
+    k, k15 = __rounds_inline_ref3p(k, k15);
+    k, k15 = __sum_states_ref3p(k, k15, st);
+    __store_xor_last_ref3p(s_output, s_plain, s_len, k, k15);
+  }
+}
+
+
+inline fn __chacha_ref3p(#public reg u64 output len nonce key)
+{
+  #public regx u64 s_output s_len;
+  #secret stack u32[16] st;
+  #secret reg u32[16] k;  // the full state is in k[0..14] and k15;
+  #secret stack u32 k15;
+  #public reg bool b;
+
+  s_output = #MOVX(output);
+  s_len = #MOVX(len);
+
+  st = __init_ref3p(nonce, key);
+
+  while {len = #MOVX(s_len); b = (len >= 64); } (b)
+  { k, k15 = __copy_state_ref3p(st);
+    k, k15 = __rounds_inline_ref3p(k, k15);
+    s_output, s_len = __sum_states_store_ref3p(s_output, s_len, k, k15, st);
+    st = __increment_counter_ref3p(st);
+  }
+
+  b = (len > 0);
+  if(b)
+  { k, k15 = __copy_state_ref3p(st);
+    k, k15 = __rounds_inline_ref3p(k, k15);
+    k, k15 = __sum_states_ref3p(k, k15, st);
+    __store_last_ref3p(s_output, s_len, k, k15);
+  }
+}
+
