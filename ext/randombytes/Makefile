@@ -1,7 +1,7 @@
 CC     := gcc
 CFLAGS := -Wall -Ofast -c
 
-default: rand1.o
+default: randombytes.o
 
 %.o: %.c
 	$(CC) $(CFLAGS) -o $@ $<
